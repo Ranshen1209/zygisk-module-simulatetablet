@@ -22,11 +22,11 @@ static char* extractPackageNameFromDataDir(const char* dataDir);
 static char* extractPackageNameFromDataDir(const char* dataDir) {
     if (!dataDir) return nullptr;
     const char* lastSlash = strrchr(dataDir, '/');
-    if (!lastSlash) { LOGW("extractPackageNameFromDataDir: 在 dataDir '%s' 中未找到 '/'", dataDir); return nullptr; }
+    if (!lastSlash) { LOGW("extractPackageNameFromDataDir: '/' not found in dataDir '%s'", dataDir); return nullptr; }
     size_t packageNameLen = strlen(lastSlash + 1);
-    if (packageNameLen == 0) { LOGW("extractPackageNameFromDataDir: dataDir '%s' 以 '/' 结尾", dataDir); return nullptr; }
+    if (packageNameLen == 0) { LOGW("extractPackageNameFromDataDir: dataDir '%s' ends with '/'", dataDir); return nullptr; }
     char* packageName = (char*)malloc(packageNameLen + 1);
-    if (!packageName) { LOGE("extractPackageNameFromDataDir: 分配内存失败"); return nullptr; }
+    if (!packageName) { LOGE("extractPackageNameFromDataDir: Memory allocation failed"); return nullptr; }
     strcpy(packageName, lastSlash + 1);
     packageName[packageNameLen] = '\0';
     return packageName;
@@ -38,35 +38,35 @@ private:
     JNIEnv *env = nullptr;
 
     void simulateTabletDevice(const char *brand_c, const char *model_c, const char *manufacturer_c) {
-        LOGI("模拟设备: Brand=%s, Model=%s, Manufacturer=%s", brand_c, model_c, manufacturer_c);
+        LOGI("Simulating device: Brand=%s, Model=%s, Manufacturer=%s", brand_c, model_c, manufacturer_c);
         jclass buildClass = env->FindClass("android/os/Build");
-        if (!buildClass) { LOGE("simulateTabletDevice: 未找到 Build 类"); if (env->ExceptionCheck()) env->ExceptionClear(); return; }
+        if (!buildClass) { LOGE("simulateTabletDevice: Build class not found"); if (env->ExceptionCheck()) env->ExceptionClear(); return; }
         jfieldID manuField = env->GetStaticFieldID(buildClass, "MANUFACTURER", "Ljava/lang/String;");
         jfieldID brandField = env->GetStaticFieldID(buildClass, "BRAND", "Ljava/lang/String;");
         jfieldID modelField = env->GetStaticFieldID(buildClass, "MODEL", "Ljava/lang/String;");
-        if (!manuField || !brandField || !modelField) { LOGE("simulateTabletDevice: 获取 Build 类字段失败"); env->DeleteLocalRef(buildClass); if (env->ExceptionCheck()) env->ExceptionClear(); return; }
+        if (!manuField || !brandField || !modelField) { LOGE("simulateTabletDevice: Failed to get Build class fields"); env->DeleteLocalRef(buildClass); if (env->ExceptionCheck()) env->ExceptionClear(); return; }
         jstring manuJ = env->NewStringUTF(manufacturer_c);
         jstring brandJ = env->NewStringUTF(brand_c);
         jstring modelJ = env->NewStringUTF(model_c);
         if (!manuJ || !brandJ || !modelJ) {
-            LOGE("simulateTabletDevice: 创建 JNI 字符串失败");
+            LOGE("simulateTabletDevice: Failed to create JNI strings");
             if (manuJ) env->DeleteLocalRef(manuJ); if (brandJ) env->DeleteLocalRef(brandJ); if (modelJ) env->DeleteLocalRef(modelJ);
         } else {
             env->SetStaticObjectField(buildClass, manuField, manuJ);
             env->SetStaticObjectField(buildClass, brandField, brandJ);
             env->SetStaticObjectField(buildClass, modelField, modelJ);
-            LOGI("simulateTabletDevice: Build 字段设置成功。");
+            LOGI("simulateTabletDevice: Build fields set successfully.");
             env->DeleteLocalRef(manuJ); env->DeleteLocalRef(brandJ); env->DeleteLocalRef(modelJ);
         }
         env->DeleteLocalRef(buildClass);
-        if (env->ExceptionCheck()) { LOGE("simulateTabletDevice: 设置字段时发生异常"); env->ExceptionClear(); }
+        if (env->ExceptionCheck()) { LOGE("simulateTabletDevice: Exception occurred while setting fields"); env->ExceptionClear(); }
     }
 
 public:
     void onLoad(Api *api, JNIEnv *env) override {
         this->api = api;
         this->env = env;
-        LOGI("SimulateTablet 模块已加载 (仅微信模式)。");
+        LOGI("SimulateTablet module loaded.");
     }
 
     void preAppSpecialize(AppSpecializeArgs *args) override {
@@ -81,7 +81,7 @@ public:
                 packageName = extractPackageNameFromDataDir(appDataDirC);
                 if (packageName != nullptr) {
                     if (strcmp(packageName, WECHAT_PACKAGE_NAME) == 0) {
-                        LOGI("Pre-specialize: 匹配到目标包 WeChat (%s)。设置 FORCE_DENYLIST_UNMOUNT。", packageName);
+                        LOGI("Pre-specialize: Matched target package WeChat (%s). Setting FORCE_DENYLIST_UNMOUNT.", packageName);
                         api->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
                         isWeChat = true;
                     }
@@ -96,14 +96,14 @@ public:
                 if (env->ExceptionCheck()) env->ExceptionClear();
             }
         } else {
-            LOGW("Pre-specialize: app_data_dir JNI 字符串为空。");
+            LOGW("Pre-specialize: app_data_dir JNI string is null.");
         }
 
         if (!isWeChat) {
             const char* niceName = args->nice_name ? args->nice_name : "(null)";
-            LOGW("Pre-specialize: 未通过 app_data_dir 匹配，检查 nice_name (%s)...", niceName);
+            LOGW("Pre-specialize: Not matched via app_data_dir, checking nice_name (%s)...", niceName);
             if (args->nice_name && strstr(niceName, WECHAT_PACKAGE_NAME) != nullptr) {
-                LOGW("Pre-specialize: 通过后备 nice_name 匹配到 WeChat (%s)。设置 FORCE_DENYLIST_UNMOUNT。", niceName);
+                LOGW("Pre-specialize: Matched WeChat (%s) via fallback nice_name. Setting FORCE_DENYLIST_UNMOUNT.", niceName);
                 api->setOption(zygisk::FORCE_DENYLIST_UNMOUNT);
                 isWeChat = true;
             }
@@ -124,7 +124,7 @@ public:
             appDataDirC = env->GetStringUTFChars(appDataDirJ, nullptr);
             if (appDataDirC != nullptr) {
                 packageName = extractPackageNameFromDataDir(appDataDirC);
-                env->ReleaseStringUTFChars(appDataDirJ, appDataDirC); // 尽早释放
+                env->ReleaseStringUTFChars(appDataDirJ, appDataDirC); // Release early
                 if (packageName != nullptr) {
                     if (strcmp(packageName, WECHAT_PACKAGE_NAME) == 0) isWeChat = true;
                 }
@@ -133,25 +133,25 @@ public:
                 if (env->ExceptionCheck()) env->ExceptionClear();
             }
         } else {
-            LOGW("Post-specialize: app_data_dir JNI 字符串为空。");
+            LOGW("Post-specialize: app_data_dir JNI string is null.");
         }
 
         if (isWeChat) {
-            LOGI("Post-specialize: 处理 WeChat (%s)", packageName ? packageName : "unknown (解析失败)");
+            LOGI("Post-specialize: Handling WeChat (%s)", packageName ? packageName : "unknown (parsing failed)");
             simulateTabletDevice(WECHAT_TARGET_BRAND, WECHAT_TARGET_MODEL, WECHAT_TARGET_BRAND);
-            LOGI("Post-specialize: WeChat 处理完成。");
+            LOGI("Post-specialize: WeChat handling completed.");
         } else if (packageName != nullptr) {
-            LOGI("Post-specialize: 解析到包名 %s，但不是目标应用 WeChat。", packageName);
+            LOGI("Post-specialize: Parsed package name %s, but it is not the target app WeChat.", packageName);
         } else {
             const char* niceName = args->nice_name ? args->nice_name : "(null)";
-            LOGW("Post-specialize: 无法从 app_data_dir 解析包名，尝试使用 nice_name (%s)...", niceName);
+            LOGW("Post-specialize: Unable to parse package name from app_data_dir, trying nice_name (%s)...", niceName);
             if (args->nice_name && strstr(niceName, WECHAT_PACKAGE_NAME) != nullptr) {
-                LOGW("Post-specialize: 使用后备 nice_name 处理 WeChat (%s)", niceName);
+                LOGW("Post-specialize: Handling WeChat (%s) via fallback nice_name", niceName);
                 simulateTabletDevice(WECHAT_TARGET_BRAND, WECHAT_TARGET_MODEL, WECHAT_TARGET_BRAND);
-                LOGI("Post-specialize: WeChat 处理完成。");
+                LOGI("Post-specialize: WeChat handling completed.");
                 isWeChat = true;
             } else {
-                LOGI("Post-specialize: nice_name (%s) 也未匹配 WeChat。", niceName);
+                LOGI("Post-specialize: nice_name (%s) did not match WeChat.", niceName);
             }
         }
 
@@ -159,7 +159,6 @@ public:
             free(packageName);
             packageName = nullptr;
         }
-
     }
 };
 
