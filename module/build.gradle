@@ -1,0 +1,15 @@
+import com.android.build.gradle.tasks.ExternalNativeBuildTask
+
+plugins {
+    id 'com.android.library'
+}
+
+android {
+    compileSdk 33
+    ndkVersion "25.2.9519653"
+    externalNativeBuild {
+        ndkBuild {
+            path("jni/Android.mk")
+        }
+    }
+}
