@@ -1,4 +1,4 @@
-### zygisk-module-simulatetablet
+## zygisk-module-simulatetablet
 
 A Zygisk-based module for simulating a tablet device on WeChat.
 
